@@ -49,7 +49,7 @@ export default function Dashboard() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Package className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-headline tracking-tighter">MateriLog</h1>
+            <h1 className="text-xl font-headline tracking-tighter">Materiales</h1>
           </div>
           <div className="flex items-center gap-2">
             <AddProductDrawer onAdded={() => setRefreshKey(prev => prev + 1)} />
