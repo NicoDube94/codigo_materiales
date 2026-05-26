@@ -1,0 +1,58 @@
+{
+  "placeholderImages": [
+    {
+      "id": "rejilla",
+      "description": "Rejilla de protección industrial",
+      "imageUrl": "https://picsum.photos/seed/rejilla/300/200",
+      "imageHint": "metal grill"
+    },
+    {
+      "id": "boton",
+      "description": "Botón de encendido reforzado",
+      "imageUrl": "https://picsum.photos/seed/button/300/200",
+      "imageHint": "power button"
+    },
+    {
+      "id": "oring",
+      "description": "O-Ring de silicona industrial",
+      "imageUrl": "https://picsum.photos/seed/oring/300/200",
+      "imageHint": "rubber gasket"
+    },
+    {
+      "id": "tablero",
+      "description": "Tablero de adorno con impresión técnica",
+      "imageUrl": "https://picsum.photos/seed/panel/300/200",
+      "imageHint": "control panel"
+    },
+    {
+      "id": "encendedor",
+      "description": "Encendedor piezoeléctrico PXE",
+      "imageUrl": "https://picsum.photos/seed/igniter/300/200",
+      "imageHint": "electronic igniter"
+    },
+    {
+      "id": "quemador",
+      "description": "Quemador rápido de alta eficiencia",
+      "imageUrl": "https://picsum.photos/seed/burner/300/200",
+      "imageHint": "gas burner"
+    },
+    {
+      "id": "valvula",
+      "description": "Válvula de seguridad termomagnética",
+      "imageUrl": "https://picsum.photos/seed/valve/300/200",
+      "imageHint": "gas valve"
+    },
+    {
+      "id": "perilla",
+      "description": "Perilla de control ergonómica",
+      "imageUrl": "https://picsum.photos/seed/knob/300/200",
+      "imageHint": "control knob"
+    },
+    {
+      "id": "vidrio",
+      "description": "Vidrio templado puerta horno",
+      "imageUrl": "https://picsum.photos/seed/glass/300/200",
+      "imageHint": "tempered glass"
+    }
+  ]
+}
