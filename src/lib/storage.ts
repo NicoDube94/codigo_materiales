@@ -1,10 +1,18 @@
+import { createClient } from '@supabase/supabase-js';
 
+// Conexión a Supabase usando variables de entorno
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Ajustamos las interfaces para que coincidan con la base de datos
 export interface Material {
   id: string;
   materialCode: string;
   description: string;
   photoUrl: string;
-  timestamp: number;
+  timestamp: number; // Mantenemos el formato para no romper tus componentes UI
 }
 
 export interface Product {
@@ -13,155 +21,109 @@ export interface Product {
   materials: Material[];
 }
 
-const STORAGE_KEY = 'materilog_data';
+// Obtiene todos los productos y sus materiales asociados desde Supabase
+export const getStore = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      id,
+      product_code,
+      materials (
+        id,
+        material_code,
+        description,
+        photo_url,
+        created_at
+      )
+    `)
+    .order('created_at', { ascending: false });
 
-export const getStore = (): Product[] => {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    const now = Date.now();
-    const seed: Product[] = [
-      {
-        id: 'p-4044gon',
-        productCode: '4044GON',
-        materials: [
-          {
-            id: 'm-img-1',
-            materialCode: '25H00003662',
-            description: 'REJILLA DE FUNDICIÓN SUPERIOR',
-            photoUrl: 'https://picsum.photos/seed/rejilla/300/200',
-            timestamp: now
-          },
-          {
-            id: 'm-img-2',
-            materialCode: '27-262',
-            description: 'BOTON ENCENDIDO REFORZADO',
-            photoUrl: 'https://picsum.photos/seed/button/300/200',
-            timestamp: now - 600000
-          },
-          {
-            id: 'm-img-3',
-            materialCode: '48H00025',
-            description: 'O RING 2-115 SILICONA ALTA TEMP',
-            photoUrl: 'https://picsum.photos/seed/oring/300/200',
-            timestamp: now - 1200000
-          },
-          {
-            id: 'm-img-4',
-            materialCode: '20H00055',
-            description: 'TABLERO ADORNO CON IMPRESIÓN LÁSER',
-            photoUrl: 'https://picsum.photos/seed/panel/300/200',
-            timestamp: now - 1800000
-          },
-          {
-            id: 'm-img-5',
-            materialCode: '67H00664',
-            description: 'ENCENDEDOR PIEZOELÉCTRICO MOD. PXE',
-            photoUrl: 'https://picsum.photos/seed/igniter/300/200',
-            timestamp: now - 2400000
-          },
-          {
-            id: 'm-img-6',
-            materialCode: '12H00010',
-            description: 'QUEMADOR RÁPIDO DE ALUMINIO',
-            photoUrl: 'https://picsum.photos/seed/burner/300/200',
-            timestamp: now - 3600000
-          },
-          {
-            id: 'm-img-7',
-            materialCode: '33H00045',
-            description: 'VÁLVULA DE SEGURIDAD TERMOMAGNÉTICA',
-            photoUrl: 'https://picsum.photos/seed/valve/300/200',
-            timestamp: now - 7200000
-          },
-          {
-            id: 'm-img-8',
-            materialCode: '05H00022',
-            description: 'PERILLA COCINA PLÁSTICA GRIS',
-            photoUrl: 'https://picsum.photos/seed/knob/300/200',
-            timestamp: now - 14400000
-          },
-          {
-            id: 'm-img-9',
-            materialCode: '18H00099',
-            description: 'VIDRIO PUERTA HORNO TEMPLADO',
-            photoUrl: 'https://picsum.photos/seed/glass/300/200',
-            timestamp: now - 28800000
-          }
-        ]
-      },
-      {
-        id: 'p-1',
-        productCode: '43716VM',
-        materials: [
-          {
-            id: 'm1',
-            materialCode: '76H02105',
-            description: 'Etiqueta de eficiencia energía clase A++',
-            photoUrl: 'https://picsum.photos/seed/label/300/200',
-            timestamp: now - 86400000
-          }
-        ]
-      }
-    ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-    return seed;
-  }
-  return JSON.parse(stored);
-};
-
-export const saveStore = (data: Product[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
-};
-
-export const addMaterialToProduct = (productCode: string, material: Omit<Material, 'id' | 'timestamp'>) => {
-  const store = getStore();
-  let product = store.find(p => p.productCode === productCode);
-  
-  const newMaterial: Material = {
-    ...material,
-    id: Math.random().toString(36).substring(2, 11),
-    timestamp: Date.now()
-  };
-
-  if (product) {
-    product.materials.unshift(newMaterial);
-  } else {
-    product = {
-      id: Math.random().toString(36).substring(2, 11),
-      productCode,
-      materials: [newMaterial]
-    };
-    store.unshift(product);
+  if (error) {
+    console.error('Error obteniendo datos de Supabase:', error);
+    return [];
   }
 
-  saveStore(store);
-  return store;
+  // Mapeamos los datos de la BD al formato que ya usa tu frontend
+  return data.map((p: any) => ({
+    id: p.id,
+    productCode: p.product_code,
+    materials: p.materials.map((m: any) => ({
+      id: m.id,
+      materialCode: m.material_code,
+      description: m.description,
+      photoUrl: m.photo_url,
+      timestamp: new Date(m.created_at).getTime()
+    }))
+  }));
 };
 
-export const addNewProduct = (productCode: string): { success: boolean; error?: string } => {
-  const store = getStore();
+// Agrega un material. Si el producto no existe, lo crea primero.
+export const addMaterialToProduct = async (
+  productCode: string, 
+  material: Omit<Material, 'id' | 'timestamp'>
+) => {
+  // 1. Buscar si el producto ya existe
+  let { data: product } = await supabase
+    .from('products')
+    .select('id')
+    .eq('product_code', productCode)
+    .single();
+
+  // 2. Si no existe, lo creamos
+  if (!product) {
+    const { data: newProduct, error: prodError } = await supabase
+      .from('products')
+      .insert([{ product_code: productCode }])
+      .select('id')
+      .single();
+
+    if (prodError) throw new Error('Error al crear el nuevo producto en la BD');
+    product = newProduct;
+  }
+
+  // 3. Insertar el material relacionándolo con el producto
+  const { error: matError } = await supabase
+    .from('materials')
+    .insert([{
+      product_id: product.id,
+      material_code: material.materialCode,
+      description: material.description,
+      photo_url: material.photoUrl
+    }]);
+
+  if (matError) throw new Error('Error al guardar el material en la BD');
+
+  // Devolvemos el store actualizado
+  return await getStore();
+};
+
+// Crear un nuevo producto vacío
+export const addNewProduct = async (productCode: string): Promise<{ success: boolean; error?: string }> => {
   const normalizedCode = productCode.trim().toUpperCase();
   
   if (!normalizedCode) {
     return { success: false, error: "El código de producto no puede estar vacío." };
   }
 
-  const existing = store.find(p => p.productCode === normalizedCode);
+  // Verificar si ya existe en la BD
+  const { data: existing } = await supabase
+    .from('products')
+    .select('id')
+    .eq('product_code', normalizedCode)
+    .single();
+
   if (existing) {
     return { success: false, error: "Este código de producto ya existe en el catálogo." };
   }
 
-  const newProduct: Product = {
-    id: 'p-' + Math.random().toString(36).substring(2, 11),
-    productCode: normalizedCode,
-    materials: []
-  };
+  // Insertar nuevo producto
+  const { error } = await supabase
+    .from('products')
+    .insert([{ product_code: normalizedCode }]);
 
-  store.unshift(newProduct);
-  saveStore(store);
+  if (error) {
+    return { success: false, error: "Error de base de datos al crear el producto." };
+  }
+
   return { success: true };
 };
-

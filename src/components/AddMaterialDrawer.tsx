@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Camera, Plus, Upload, X, Check, Loader2 } from "lucide-react"
+import { Camera, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,8 +9,6 @@ import { extractMaterialLabel } from "@/ai/flows/material-label-extractor"
 import { ScannerOverlay } from "./ScannerOverlay"
 import { addMaterialToProduct } from "@/lib/storage"
 
-// Shadcn Drawer is actually in sheet.tsx or dialog? No, it's missing. I'll use Sheet as fallback or create one.
-// Let's use Dialog/Sheet for the mobile interaction.
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
@@ -19,6 +17,7 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
   const [description, setDescription] = React.useState("")
   const [photoUrl, setPhotoUrl] = React.useState("")
   const [isScanning, setIsScanning] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false) // <-- Nuevo estado para guardar
   const [isOpen, setIsOpen] = React.useState(false)
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,7 +26,6 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
 
     setIsScanning(true)
     
-    // Simulate reading file and data URI
     const reader = new FileReader()
     reader.onload = async (event) => {
       const dataUri = event.target?.result as string
@@ -46,16 +44,28 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
+  // <-- Convertimos handleSave a async
+  const handleSave = async () => {
     if (!productCode || !materialCode || !description) return
-    addMaterialToProduct(productCode, {
-      materialCode,
-      description,
-      photoUrl: photoUrl || `https://picsum.photos/seed/${materialCode}/300/200`
-    })
-    setIsOpen(false)
-    reset()
-    onAdded()
+    
+    setIsSaving(true) // Iniciamos el estado de carga
+    try {
+      // Esperamos a que Supabase termine de guardar
+      await addMaterialToProduct(productCode, {
+        materialCode,
+        description,
+        photoUrl: photoUrl || `https://picsum.photos/seed/${materialCode}/300/200`
+      })
+      
+      setIsOpen(false)
+      reset()
+      onAdded()
+    } catch (error) {
+      console.error("Error al guardar en la base de datos:", error)
+      // Opcional: Aquí podrías agregar un Toast de error para avisar que algo falló
+    } finally {
+      setIsSaving(false) // Terminamos el estado de carga
+    }
   }
 
   const reset = () => {
@@ -89,6 +99,7 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
               value={productCode}
               onChange={(e) => setProductCode(e.target.value.toUpperCase())}
               className="bg-secondary/50 border-white/5 focus:border-primary font-headline"
+              disabled={isSaving}
             />
           </div>
 
@@ -105,8 +116,9 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
               type="file" 
               accept="image/*" 
               capture="environment" 
-              className="absolute inset-0 opacity-0 cursor-pointer" 
+              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
               onChange={handleFileUpload}
+              disabled={isSaving}
             />
           </div>
 
@@ -118,6 +130,7 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
                 value={materialCode}
                 onChange={(e) => setMaterialCode(e.target.value)}
                 className="bg-secondary/50 border-white/5 font-headline"
+                disabled={isSaving}
               />
             </div>
             <div className="space-y-2">
@@ -127,16 +140,25 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="bg-secondary/50 border-white/5"
+                disabled={isSaving}
               />
             </div>
           </div>
 
+          {/* Botón actualizado con estado de carga */}
           <Button 
             onClick={handleSave} 
-            disabled={!productCode || !materialCode}
+            disabled={!productCode || !materialCode || isSaving}
             className="w-full h-12 text-md font-headline tracking-wide uppercase bg-accent text-background hover:bg-accent/90"
           >
-            Guardar en Catálogo
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              "Guardar en Catálogo"
+            )}
           </Button>
         </div>
       </SheetContent>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Camera, FolderPlus, AlertCircle, Check, Sparkles, Box, Info } from "lucide-react"
+import { Camera, FolderPlus, AlertCircle, Check, Sparkles, Box, Info, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
@@ -31,22 +31,37 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
   const [error, setError] = React.useState("")
   const [success, setSuccess] = React.useState(false)
   const [isOpen, setIsOpen] = React.useState(false)
+  
+  // Nuevos estados de carga para Supabase
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [isLoadingProducts, setIsLoadingProducts] = React.useState(false)
 
   // List of existing products in the store
   const [productsList, setProductsList] = React.useState<any[]>([])
 
-  // Load existing products on drawer open
+  // Load existing products on drawer open (Ahora asíncrono)
   React.useEffect(() => {
     if (isOpen) {
-      const store = getStore()
-      setProductsList(store)
-      
-      // Pre-select first product if any exist, otherwise set to new product creation
-      if (store.length > 0) {
-        setSelectedProduct(store[0].productCode)
-      } else {
-        setSelectedProduct("__NEW_PRODUCT__")
+      const fetchProducts = async () => {
+        setIsLoadingProducts(true)
+        try {
+          const store = await getStore()
+          setProductsList(store)
+          
+          // Pre-select first product if any exist, otherwise set to new product creation
+          if (store.length > 0) {
+            setSelectedProduct(store[0].productCode)
+          } else {
+            setSelectedProduct("__NEW_PRODUCT__")
+          }
+        } catch (err) {
+          console.error("Error al cargar productos", err)
+        } finally {
+          setIsLoadingProducts(false)
+        }
       }
+      
+      fetchProducts()
     }
   }, [isOpen])
 
@@ -72,7 +87,8 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
+  // Ahora es una función asíncrona
+  const handleSave = async () => {
     setError("")
     setSuccess(false)
 
@@ -104,8 +120,10 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
       return
     }
 
+    setIsSaving(true) // Iniciamos el spinner
+
     try {
-      addMaterialToProduct(targetProductCode, {
+      await addMaterialToProduct(targetProductCode, {
         materialCode: normalizedMat,
         description: normalizedDesc,
         photoUrl: photoUrl || `https://picsum.photos/seed/${normalizedMat}/300/200`
@@ -116,11 +134,13 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
       setTimeout(() => {
         setIsOpen(false)
         setSuccess(false)
+        setIsSaving(false)
         reset()
         onAdded()
       }, 1200)
     } catch (err) {
-      setError("Error al guardar en el catálogo local.")
+      setError("Error al guardar en la base de datos.")
+      setIsSaving(false) // Quitamos el spinner si hay error
     }
   }
 
@@ -163,7 +183,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-muted-foreground uppercase text-[10px] tracking-widest font-bold">Producto Padre</Label>
-              {selectedProduct !== "__NEW_PRODUCT__" && (
+              {selectedProduct !== "__NEW_PRODUCT__" && !isLoadingProducts && (
                 <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 text-[9px] font-medium py-0 h-4">
                   <Box className="w-2.5 h-2.5 mr-1" /> Catálogo Existente
                 </Badge>
@@ -176,9 +196,10 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
                 setSelectedProduct(val)
                 setError("")
               }}
+              disabled={isLoadingProducts || isSaving}
             >
               <SelectTrigger className="bg-secondary/50 border-white/5 focus:border-primary font-headline h-11 rounded-xl w-full text-left">
-                <SelectValue placeholder="Seleccionar producto..." />
+                <SelectValue placeholder={isLoadingProducts ? "Cargando productos..." : "Seleccionar producto..."} />
               </SelectTrigger>
               <SelectContent className="bg-background border-white/10 rounded-xl max-h-60 overflow-y-auto z-[60]">
                 {productsList.map((p) => (
@@ -215,6 +236,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
                   setNewProductCode(e.target.value.toUpperCase())
                 }}
                 className="bg-secondary/50 border-white/5 focus:border-primary font-headline h-11 rounded-xl"
+                disabled={isSaving}
               />
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
                 <Info className="w-3.5 h-3.5 text-accent shrink-0" />
@@ -248,8 +270,9 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
                 type="file" 
                 accept="image/*" 
                 capture="environment" 
-                className="absolute inset-0 opacity-0 cursor-pointer animate-none" 
+                className="absolute inset-0 opacity-0 cursor-pointer animate-none disabled:cursor-not-allowed" 
                 onChange={handleFileUpload}
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -263,6 +286,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
                 value={materialCode}
                 onChange={(e) => setMaterialCode(e.target.value.toUpperCase())}
                 className="bg-secondary/50 border-white/5 font-headline h-11 rounded-xl"
+                disabled={isSaving}
               />
             </div>
             <div className="space-y-2">
@@ -272,6 +296,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="bg-secondary/50 border-white/5 h-11 rounded-xl"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -296,12 +321,22 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
               (selectedProduct === "__NEW_PRODUCT__" && !newProductCode.trim()) || 
               !materialCode.trim() || 
               !description.trim() || 
+              isSaving ||
               success || 
               newProductExistsAlready === true
             }
             className="w-full h-12 text-md font-headline tracking-wide uppercase bg-accent text-background hover:bg-accent/90 rounded-xl"
           >
-            {success ? "Guardando..." : "Guardar en Catálogo"}
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Guardando...
+              </>
+            ) : success ? (
+              "¡Guardado!"
+            ) : (
+              "Guardar en Catálogo"
+            )}
           </Button>
         </div>
       </SheetContent>

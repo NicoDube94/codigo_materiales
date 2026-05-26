@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, Package, Box, Filter, ArrowRight, ChevronDown, MoreVertical, X, Plus } from "lucide-react"
+import { Search, Package, Box, Filter, ArrowRight, ChevronDown, MoreVertical, X, Plus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { getStore, type Product } from "@/lib/storage"
@@ -15,9 +15,24 @@ export default function Dashboard() {
   const [products, setProducts] = React.useState<Product[]>([])
   const [refreshKey, setRefreshKey] = React.useState(0)
   const [activePhoto, setActivePhoto] = React.useState<string | null>(null)
+  
+  // Nuevo estado para manejar la carga asíncrona de la base de datos
+  const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
-    setProducts(getStore())
+    const fetchProducts = async () => {
+      setIsLoading(true)
+      try {
+        const storeData = await getStore()
+        setProducts(storeData || [])
+      } catch (error) {
+        console.error("Error al cargar los productos de la base de datos:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
   }, [refreshKey])
 
   const filteredProducts = products.filter(p => 
@@ -49,13 +64,19 @@ export default function Dashboard() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 bg-secondary/40 border-white/5 rounded-xl h-12 focus:ring-accent/50"
+            disabled={isLoading}
           />
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 p-4 space-y-4">
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center text-muted-foreground">
+            <Loader2 className="w-10 h-10 mb-4 animate-spin text-accent" />
+            <p className="font-headline uppercase tracking-widest text-sm text-accent/80">Sincronizando Catálogo...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
             <Box className="w-16 h-16 mb-4" />
             <p className="font-headline uppercase tracking-widest text-sm">Sin Registros</p>
