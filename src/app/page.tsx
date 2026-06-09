@@ -9,6 +9,8 @@ import { AddProductDrawer } from "@/components/AddProductDrawer"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { EditMaterialDrawer } from "@/components/EditMaterialDrawer"
+import { MaterialImage } from "@/components/MaterialImage"
 
 export default function Dashboard() {
   const [search, setSearch] = React.useState("")
@@ -107,10 +109,10 @@ export default function Dashboard() {
                             className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted cursor-zoom-in active:scale-95 hover:scale-105 transition-all duration-200 border border-white/5"
                             title="Ver en pantalla completa"
                           >
-                            <img 
-                              src={material.photoUrl} 
-                              alt={material.materialCode}
-                              className="w-full h-full object-cover"
+                           <MaterialImage
+                              photoUrl={material.photoUrl}
+                              className="w-full h-full rounded-lg"
+                              iconSize={28}
                             />
                           </div>
                           <div className="flex flex-col justify-center flex-1 min-w-0">
@@ -123,6 +125,9 @@ export default function Dashboard() {
                             <p className="text-xs text-muted-foreground leading-tight line-clamp-2 uppercase font-medium">
                               {material.description}
                             </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <EditMaterialDrawer material={material} onUpdated={() => setRefreshKey(prev => prev + 1)} />
                           </div>
                         </div>
                       ))}
