@@ -243,6 +243,100 @@ export const getMaterialsCatalog = async (): Promise<Material[]> => {
 
 // ─── Escritura ────────────────────────────────────────────────────────────────
 
+export const addMaterialToProduct = async (
+  productCode: string,
+  material: Omit<Material, 'id' | 'timestamp'>
+): Promise<{ success: boolean; error?: string }> => {
+  const normalizedProduct = productCode.trim().toUpperCase();
+
+  if (!normalizedProduct) {
+    return { success: false, error: 'El código de producto no puede estar vacío.' };
+  }
+
+  const { data: productData, error: productLookupError } = await supabase
+    .from('products')
+    .select('id')
+    .eq('product_code', normalizedProduct)
+    .maybeSingle();
+
+  if (productLookupError) {
+    return { success: false, error: 'Error al buscar el producto en la base de datos.' };
+  }
+
+  let productId = productData?.id;
+
+  if (!productId) {
+    const { data: newProduct, error: productInsertError } = await supabase
+      .from('products')
+      .insert([{ product_code: normalizedProduct }])
+      .select('id')
+      .single();
+
+    if (productInsertError || !newProduct) {
+      return { success: false, error: 'Error al crear el producto en la base de datos.' };
+    }
+
+    productId = newProduct.id;
+  }
+
+  const { data: existingMaterial, error: materialLookupError } = await supabase
+    .from('materials_catalog')
+    .select('id')
+    .eq('material_code', material.materialCode)
+    .maybeSingle();
+
+  if (materialLookupError) {
+    return { success: false, error: 'Error al buscar el material en el catálogo.' };
+  }
+
+  let materialId = existingMaterial?.id;
+
+  if (!materialId) {
+    const { data: newMaterial, error: materialInsertError } = await supabase
+      .from('materials_catalog')
+      .insert([
+        {
+          material_code: material.materialCode,
+          description: material.description,
+          photo_url: material.photoUrl || '',
+        },
+      ])
+      .select('id')
+      .single();
+
+    if (materialInsertError || !newMaterial) {
+      return { success: false, error: 'Error al crear el material en el catálogo.' };
+    }
+
+    materialId = newMaterial.id;
+  } else {
+    const { error: materialUpdateError } = await supabase
+      .from('materials_catalog')
+      .update({
+        description: material.description,
+        photo_url: material.photoUrl || '',
+      })
+      .eq('id', materialId);
+
+    if (materialUpdateError) {
+      return { success: false, error: 'Error al actualizar el material en el catálogo.' };
+    }
+  }
+
+  const { error: relationError } = await supabase
+    .from('product_materials')
+    .upsert(
+      [{ product_id: productId, material_id: materialId }],
+      { onConflict: 'product_id,material_id' }
+    );
+
+  if (relationError) {
+    return { success: false, error: 'Error al vincular el material con el producto.' };
+  }
+
+  return { success: true };
+};
+
 export const addMaterialToCatalog = async (
   material: Omit<Material, 'id' | 'timestamp'>,
   productIds: string[]

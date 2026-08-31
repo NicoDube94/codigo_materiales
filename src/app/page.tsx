@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { EditMaterialDrawer } from "@/components/EditMaterialDrawer"
 import { MaterialImage } from "@/components/MaterialImage"
+import { ImportFileButton } from "@/components/ImportFileButton"
 
 export default function Dashboard() {
   const [search, setSearch] = React.useState("")
@@ -54,6 +55,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-headline tracking-tighter">Materiales</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ImportFileButton onImported={() => setRefreshKey(prev => prev + 1)} />
             <AddProductDrawer onAdded={() => setRefreshKey(prev => prev + 1)} />
             <Badge variant="outline" className="border-accent/30 text-accent font-headline text-[10px] hidden sm:inline-flex">RELIABLE SYSTEM</Badge>
           </div>
