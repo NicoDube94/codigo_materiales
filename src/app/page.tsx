@@ -38,10 +38,22 @@ export default function Dashboard() {
     fetchProducts()
   }, [refreshKey])
 
-  const filteredProducts = products.filter(p => 
-    p.productCode.toLowerCase().includes(search.toLowerCase()) ||
-    p.materials.some(m => m.materialCode.toLowerCase().includes(search.toLowerCase()) || m.description.toLowerCase().includes(search.toLowerCase()))
-  )
+  const normalizedSearch = search.trim().toLocaleLowerCase()
+  const filteredProducts = products.flatMap((product) => {
+    if (!normalizedSearch) return [product]
+
+    const productMatches = product.productCode?.trim().toLocaleLowerCase() === normalizedSearch
+    if (productMatches) return [product]
+
+    const matchingMaterials = product.materials.filter((material) =>
+      material.materialCode?.trim().toLocaleLowerCase() === normalizedSearch ||
+      material.description?.toLocaleLowerCase().includes(normalizedSearch)
+    )
+
+    return matchingMaterials.length > 0
+      ? [{ ...product, materials: matchingMaterials }]
+      : []
+  })
 
   return (
     <div className="flex flex-col min-h-screen pb-24 max-w-md mx-auto relative bg-background">

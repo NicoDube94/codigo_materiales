@@ -9,6 +9,13 @@ const normalizeValue = (value: unknown): string => {
   return String(value).trim()
 }
 
+const normalizeKey = (key: string): string =>
+  key
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+
 const pickFirst = (...candidates: unknown[]): string => {
   for (const candidate of candidates) {
     const value = normalizeValue(candidate)
@@ -17,43 +24,46 @@ const pickFirst = (...candidates: unknown[]): string => {
   return ""
 }
 
+const normalizeRecord = (row: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeKey(key), value]))
+
 const parseRows = (records: Record<string, unknown>[]) => {
   return records.flatMap((row) => {
+    const normalizedRow = normalizeRecord(row)
     const productCode = pickFirst(
-      row.product_code,
-      row.productCode,
-      row.modelo,
-      row["Modelo"],
-      row.model,
-      row["model"],
+      normalizedRow.productcode,
+      normalizedRow.modelo,
+      normalizedRow.model,
+      normalizedRow.codigoproducto,
+      normalizedRow.productmodel,
+      normalizedRow.nombremodelo,
+      normalizedRow.modeloproducto,
+      normalizedRow.modelodelproducto,
+      normalizedRow.nombreproducto,
       DEFAULT_PRODUCT_CODE
     )
 
     const materialCode = pickFirst(
-      row.material_code,
-      row.materialCode,
-      row.codigo,
-      row["Código"],
-      row["Material Code"],
-      row["material code"]
+      normalizedRow.materialcode,
+      normalizedRow.codigo,
+      normalizedRow.codigomaterial,
+      normalizedRow.material
     )
 
     const description = pickFirst(
-      row.description,
-      row.descripcion,
-      row["Descripción"],
-      row["description"],
-      row.name,
-      row["Nombre"]
+      normalizedRow.description,
+      normalizedRow.descripcion,
+      normalizedRow.nombre,
+      normalizedRow.materialdescription,
+      normalizedRow.descripcionmaterial
     )
 
     const photoUrl = pickFirst(
-      row.photo_url,
-      row.photoUrl,
-      row["Photo"],
-      row["Foto"],
-      row.foto,
-      row["photo url"]
+      normalizedRow.photourl,
+      normalizedRow.photo,
+      normalizedRow.foto,
+      normalizedRow.imagen,
+      normalizedRow.image
     )
 
     if (!materialCode || !description) return []
@@ -123,12 +133,14 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const seen = new Set<string>()
+    const importedProductCodes = new Set<string>()
     let imported = 0
 
     for (const row of rows) {
       const dedupeKey = `${row.productCode}|${row.materialCode}`
       if (seen.has(dedupeKey)) continue
       seen.add(dedupeKey)
+      importedProductCodes.add(row.productCode)
 
       const { data: product, error: productError } = await supabase
         .from("products")
@@ -194,7 +206,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       imported,
-      message: `Importación correcta para el modelo ${DEFAULT_PRODUCT_CODE}.`,
+      message: `Importación correcta para ${importedProductCodes.size} modelo(s).`,
     })
   } catch (error: unknown) {
     console.error("Error al importar archivo:", error)
