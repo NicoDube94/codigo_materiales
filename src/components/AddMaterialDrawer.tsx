@@ -9,7 +9,7 @@ import { extractMaterialLabel } from "@/ai/flows/material-label-extractor"
 import { ScannerOverlay } from "./ScannerOverlay"
 import { addMaterialToProduct, uploadMaterialImage } from "@/lib/storage"
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
   const [productCode, setProductCode] = React.useState("")
@@ -95,6 +95,9 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
             <Plus className="h-6 w-6 text-accent" />
             Vincular Material
           </SheetTitle>
+          <SheetDescription>
+            Escanea o completa los datos del material y vincúlalo a un producto.
+          </SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6">

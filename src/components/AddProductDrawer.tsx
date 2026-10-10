@@ -349,7 +349,7 @@
 import * as React from "react"
 import { Camera, FolderPlus, AlertCircle, Check, Info, Loader2, Search, CheckSquare, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { addMaterialToCatalog, getStore, getMaterialsCatalog, linkMaterialToProducts, uploadMaterialImage } from "@/lib/storage"
@@ -520,6 +520,9 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
             <FolderPlus className="h-6 w-6 text-accent" />
             Vincular Material
           </SheetTitle>
+          <SheetDescription>
+            Crea un material o selecciona uno del catálogo y vincúlalo a productos.
+          </SheetDescription>
         </SheetHeader>
 
         {isLoading ? (

@@ -210,7 +210,7 @@ import { Camera, Pencil, Loader2, Check, AlertCircle, CheckSquare, Square, Setti
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { updateMaterial, linkMaterialToProducts, getStore, uploadMaterialImage, type Material } from "@/lib/storage"
 import { Badge } from "@/components/ui/badge"
 import { MaterialImage } from "@/components/MaterialImage"
@@ -357,6 +357,9 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
           <p className="text-xs text-muted-foreground font-headline tracking-widest uppercase">
             {material.materialCode}
           </p>
+          <SheetDescription>
+            Actualiza los datos, la foto y los productos asociados a este material.
+          </SheetDescription>
         </SheetHeader>
 
         {isLoading ? (
