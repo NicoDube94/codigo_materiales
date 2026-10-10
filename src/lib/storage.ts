@@ -163,11 +163,64 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+const MAX_IMAGE_DIMENSION = 1600;
+const WEBP_QUALITY = 0.82;
+
+const optimizeMaterialImage = async (file: File): Promise<File> => {
+  if (file.type === 'image/gif') {
+    return file;
+  }
+
+  let image: ImageBitmap;
+  try {
+    image = await createImageBitmap(file);
+  } catch {
+    throw new Error('No se pudo procesar la imagen seleccionada.');
+  }
+
+  try {
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('No se pudo preparar la imagen para subir.');
+    }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const optimizedBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('No se pudo comprimir la imagen seleccionada.'));
+        },
+        'image/webp',
+        WEBP_QUALITY,
+      );
+    });
+
+    if (optimizedBlob.type !== 'image/webp') {
+      throw new Error('El navegador no pudo convertir la imagen a WebP.');
+    }
+    if (optimizedBlob.size >= file.size) {
+      return file;
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'material';
+    return new File([optimizedBlob], `${baseName}.webp`, { type: 'image/webp' });
+  } finally {
+    image.close();
+  }
+};
+
 export const uploadMaterialImage = async (file: File): Promise<string> => {
   if (!file.type.startsWith('image/')) {
     throw new Error('El archivo seleccionado no es una imagen.');
   }
 
+  const imageToUpload = await optimizeMaterialImage(file);
   const extensionByMimeType: Record<string, string> = {
     'image/avif': 'avif',
     'image/gif': 'gif',
@@ -175,7 +228,7 @@ export const uploadMaterialImage = async (file: File): Promise<string> => {
     'image/png': 'png',
     'image/webp': 'webp',
   };
-  const extension = extensionByMimeType[file.type];
+  const extension = extensionByMimeType[imageToUpload.type];
 
   if (!extension) {
     throw new Error('Formato de imagen no compatible. Usa JPG, PNG, WebP, GIF o AVIF.');
@@ -184,9 +237,9 @@ export const uploadMaterialImage = async (file: File): Promise<string> => {
   const filePath = `${crypto.randomUUID()}.${extension}`;
   const { error } = await supabase.storage
     .from('image_materials')
-    .upload(filePath, file, {
+    .upload(filePath, imageToUpload, {
       cacheControl: '3600',
-      contentType: file.type,
+      contentType: imageToUpload.type,
       upsert: false,
     });
 
