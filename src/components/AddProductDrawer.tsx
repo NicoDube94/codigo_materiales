@@ -352,7 +352,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addMaterialToCatalog, getStore, getMaterialsCatalog, linkMaterialToProducts } from "@/lib/storage"
+import { addMaterialToCatalog, getStore, getMaterialsCatalog, linkMaterialToProducts, uploadMaterialImage } from "@/lib/storage"
 import { Badge } from "@/components/ui/badge"
 
 interface AddProductDrawerProps {
@@ -369,6 +369,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
   const [materialCode, setMaterialCode] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [photoUrl, setPhotoUrl] = React.useState("")
+  const [imageFile, setImageFile] = React.useState<File | null>(null)
 
   const [selectedMaterialId, setSelectedMaterialId] = React.useState("")
   const [materialSearch, setMaterialSearch] = React.useState("")
@@ -410,6 +411,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setImageFile(file)
     const reader = new FileReader()
     reader.onload = (event) => setPhotoUrl(event.target?.result as string)
     reader.readAsDataURL(file)
@@ -449,16 +451,17 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
       setIsSaving(true)
       try {
         const productIds = await getEffectiveProductIds()
+        const uploadedPhotoUrl = imageFile ? await uploadMaterialImage(imageFile) : ""
         const result = await addMaterialToCatalog(
-          { materialCode: normCode, description: normDesc, photoUrl: photoUrl || `` },
+          { materialCode: normCode, description: normDesc, photoUrl: uploadedPhotoUrl },
           productIds
         ) as { success: boolean; error?: string }
 
         if (!result.success) { setError(result.error || "Error al guardar."); return }
         setSuccess(true)
         setTimeout(() => { setIsOpen(false); setSuccess(false); reset(); onAdded() }, 1200)
-      } catch {
-        setError("Error inesperado al guardar.")
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "No se pudo guardar el material.")
       } finally {
         setIsSaving(false)
       }
@@ -487,6 +490,7 @@ export function AddProductDrawer({ onAdded, trigger }: AddProductDrawerProps) {
   const reset = () => {
     setMode("new_material")
     setMaterialCode(""); setDescription(""); setPhotoUrl("")
+    setImageFile(null)
     setSelectedMaterialId(""); setMaterialSearch("")
     setSelectedProductIds([]); setNewProductCode("")
     setError(""); setSuccess(false)

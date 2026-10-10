@@ -163,6 +163,41 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export const uploadMaterialImage = async (file: File): Promise<string> => {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('El archivo seleccionado no es una imagen.');
+  }
+
+  const extensionByMimeType: Record<string, string> = {
+    'image/avif': 'avif',
+    'image/gif': 'gif',
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  };
+  const extension = extensionByMimeType[file.type];
+
+  if (!extension) {
+    throw new Error('Formato de imagen no compatible. Usa JPG, PNG, WebP, GIF o AVIF.');
+  }
+
+  const filePath = `${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage
+    .from('image_materials')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`No se pudo subir la imagen: ${error.message}`);
+  }
+
+  const { data } = supabase.storage.from('image_materials').getPublicUrl(filePath);
+  return data.publicUrl;
+};
+
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
 export interface Material {

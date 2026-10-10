@@ -211,7 +211,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { updateMaterial, linkMaterialToProducts, getStore, type Material } from "@/lib/storage"
+import { updateMaterial, linkMaterialToProducts, getStore, uploadMaterialImage, type Material } from "@/lib/storage"
 import { Badge } from "@/components/ui/badge"
 import { MaterialImage } from "@/components/MaterialImage"
 
@@ -225,6 +225,7 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
   const [materialCode, setMaterialCode] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [photoUrl, setPhotoUrl] = React.useState("")
+  const [imageFile, setImageFile] = React.useState<File | null>(null)
   const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([])
   const [productsList, setProductsList] = React.useState<any[]>([])
   const [isSaving, setIsSaving] = React.useState(false)
@@ -238,6 +239,7 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
     setMaterialCode(material.materialCode)
     setDescription(material.description)
     setPhotoUrl(material.photoUrl)
+    setImageFile(null)
     setError("")
     setSuccess(false)
 
@@ -268,6 +270,7 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setImageFile(file)
     const reader = new FileReader()
     reader.onload = (event) => setPhotoUrl(event.target?.result as string)
     reader.readAsDataURL(file)
@@ -283,10 +286,22 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
 
     setIsSaving(true)
     try {
+      const currentPhotoUrl = photoUrl || material.photoUrl
+      let uploadedPhotoUrl = currentPhotoUrl
+      if (imageFile) {
+        uploadedPhotoUrl = await uploadMaterialImage(imageFile)
+      } else if (currentPhotoUrl.startsWith("data:image/")) {
+        const imageBlob = await (await fetch(currentPhotoUrl)).blob()
+        const legacyImageFile = new File([imageBlob], `material-${material.id}`, {
+          type: imageBlob.type,
+        })
+        uploadedPhotoUrl = await uploadMaterialImage(legacyImageFile)
+      }
+
       const updateResult = await updateMaterial(material.id, {
         materialCode: normalizedCode,
         description: normalizedDesc,
-        photoUrl: photoUrl || material.photoUrl,
+        photoUrl: uploadedPhotoUrl,
       }) as { success: boolean; error?: string }
 
       if (!updateResult.success) {
@@ -308,8 +323,8 @@ export function EditMaterialDrawer({ material, onUpdated }: EditMaterialDrawerPr
         setSuccess(false)
         onUpdated()
       }, 1000)
-    } catch {
-      setError("Error inesperado al guardar.")
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Error inesperado al guardar.")
     } finally {
       setIsSaving(false)
     }

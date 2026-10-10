@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { extractMaterialLabel } from "@/ai/flows/material-label-extractor"
 import { ScannerOverlay } from "./ScannerOverlay"
-import { addMaterialToProduct } from "@/lib/storage"
+import { addMaterialToProduct, uploadMaterialImage } from "@/lib/storage"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
@@ -16,14 +16,17 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
   const [materialCode, setMaterialCode] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [photoUrl, setPhotoUrl] = React.useState("")
+  const [imageFile, setImageFile] = React.useState<File | null>(null)
   const [isScanning, setIsScanning] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false) // <-- Nuevo estado para guardar
   const [isOpen, setIsOpen] = React.useState(false)
+  const [error, setError] = React.useState("")
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    setImageFile(file)
     setIsScanning(true)
     
     const reader = new FileReader()
@@ -50,19 +53,20 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
     
     setIsSaving(true) // Iniciamos el estado de carga
     try {
-      // Esperamos a que Supabase termine de guardar
-      await addMaterialToProduct(productCode, {
+      const uploadedPhotoUrl = imageFile ? await uploadMaterialImage(imageFile) : ""
+      const result = await addMaterialToProduct(productCode, {
         materialCode,
         description,
-        photoUrl: photoUrl || `https://picsum.photos/seed/${materialCode}/300/200`
+        photoUrl: uploadedPhotoUrl
       })
+      if (!result.success) throw new Error(result.error || "No se pudo guardar el material.")
       
       setIsOpen(false)
       reset()
       onAdded()
     } catch (error) {
       console.error("Error al guardar en la base de datos:", error)
-      // Opcional: Aquí podrías agregar un Toast de error para avisar que algo falló
+      setError(error instanceof Error ? error.message : "No se pudo guardar el material.")
     } finally {
       setIsSaving(false) // Terminamos el estado de carga
     }
@@ -73,6 +77,8 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
     setMaterialCode("")
     setDescription("")
     setPhotoUrl("")
+    setImageFile(null)
+    setError("")
   }
 
   return (
@@ -144,6 +150,8 @@ export function AddMaterialDrawer({ onAdded }: { onAdded: () => void }) {
               />
             </div>
           </div>
+
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
           {/* Botón actualizado con estado de carga */}
           <Button 
